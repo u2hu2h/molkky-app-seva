@@ -150,10 +150,11 @@ export default function HomePage() {
                     <div className="flex items-center gap-4 flex-wrap mt-2 pl-7">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">Sets:</span>
-                        <input type="number" inputMode="numeric" min={2} max={20} value={totalSets}
-                          onChange={(e) => setTotalSets(Math.min(20, Math.max(2, Number(e.target.value) || 2)))}
-                          className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
-                        <span className="text-sm text-gray-400">(2–20)</span>
+                        <button type="button" onClick={() => setTotalSets((v) => Math.max(2, v - 1))}
+                          className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">−</button>
+                        <span className="w-8 text-center text-sm font-bold">{totalSets}</span>
+                        <button type="button" onClick={() => setTotalSets((v) => Math.min(20, v + 1))}
+                          className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">＋</button>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm">Order:</span>
@@ -177,9 +178,11 @@ export default function HomePage() {
                     <div className="flex items-center gap-4 flex-wrap mt-2 pl-7">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">Wins needed:</span>
-                        <input type="number" inputMode="numeric" min={2} max={10} value={bestOfSets}
-                          onChange={(e) => setBestOfSets(Math.min(10, Math.max(2, Number(e.target.value) || 2)))}
-                          className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
+                        <button type="button" onClick={() => setBestOfSets((v) => Math.max(2, v - 1))}
+                          className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">−</button>
+                        <span className="w-8 text-center text-sm font-bold">{bestOfSets}</span>
+                        <button type="button" onClick={() => setBestOfSets((v) => Math.min(10, v + 1))}
+                          className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">＋</button>
                         <span className="text-sm text-gray-400">{bestOfLabel(bestOfSets)}</span>
                       </div>
                       <div className="flex items-center gap-2">
