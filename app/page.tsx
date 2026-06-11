@@ -150,13 +150,13 @@ export default function HomePage() {
                           <span className="text-sm">Sets:</span>
                           <input type="number" min={2} max={20} value={totalSets}
                             onChange={(e) => setTotalSets(Math.min(20, Math.max(2, Number(e.target.value))))}
-                            onClick={(e) => e.preventDefault()}
+
                             className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
                           <span className="text-sm text-gray-400">(2–20)</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm">Order:</span>
-                          <select value={orderPattern} onClick={(e) => e.preventDefault()}
+                          <select value={orderPattern}
                             onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
                             className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
                             <option value="reverse">Reverse</option>
@@ -178,13 +178,13 @@ export default function HomePage() {
                           <span className="text-sm">Wins needed:</span>
                           <input type="number" min={2} max={10} value={bestOfSets}
                             onChange={(e) => setBestOfSets(Math.min(10, Math.max(2, Number(e.target.value))))}
-                            onClick={(e) => e.preventDefault()}
+
                             className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
                           <span className="text-sm text-gray-400">{bestOfLabel(bestOfSets)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm">Order:</span>
-                          <select value={orderPattern} onClick={(e) => e.preventDefault()}
+                          <select value={orderPattern}
                             onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
                             className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
                             <option value="reverse">Reverse</option>
