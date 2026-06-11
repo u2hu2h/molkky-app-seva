@@ -132,69 +132,68 @@ export default function HomePage() {
             <div className="mb-5">
               <div className="text-sm font-bold mb-3">Game Mode</div>
               <div className="space-y-2">
-                <label className={`flex items-center gap-3 border rounded p-3 cursor-pointer transition-all ${gameMode === "single" ? "border-black bg-white" : "border-gray-200"}`}>
-                  <input type="radio" name="mode" value="single" checked={gameMode === "single"} onChange={() => setGameMode("single")} className="accent-black" />
+                <div onClick={() => setGameMode("single")}
+                  className={`flex items-center gap-3 border rounded p-3 cursor-pointer transition-all ${gameMode === "single" ? "border-black bg-white" : "border-gray-200"}`}>
+                  <input type="radio" name="mode" value="single" checked={gameMode === "single"} onChange={() => setGameMode("single")} className="accent-black pointer-events-none" />
                   <div>
                     <div className="font-bold text-sm">1 Set Match</div>
                     <div className="text-xs text-gray-400">Single set only</div>
                   </div>
-                </label>
+                </div>
 
-                <label className={`flex items-center gap-3 border rounded p-3 cursor-pointer transition-all ${gameMode === "multi" ? "border-black bg-white" : "border-gray-200"}`}>
-                  <input type="radio" name="mode" value="multi" checked={gameMode === "multi"} onChange={() => setGameMode("multi")} className="accent-black" />
-                  <div className="flex-1">
-                    <div className="font-bold text-sm mb-2">Multi Sets Match</div>
-                    {gameMode === "multi" && (
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Sets:</span>
-                          <input type="number" min={2} max={20} value={totalSets}
-                            onChange={(e) => setTotalSets(Math.min(20, Math.max(2, Number(e.target.value))))}
-
-                            className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
-                          <span className="text-sm text-gray-400">(2–20)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Order:</span>
-                          <select value={orderPattern}
-                            onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
-                            <option value="reverse">Reverse</option>
-                            <option value="slide">Slide</option>
-                          </select>
-                        </div>
-                      </div>
-                    )}
+                <div className={`border rounded p-3 transition-all ${gameMode === "multi" ? "border-black bg-white" : "border-gray-200"}`}>
+                  <div onClick={() => setGameMode("multi")} className="flex items-center gap-3 cursor-pointer">
+                    <input type="radio" name="mode" value="multi" checked={gameMode === "multi"} onChange={() => setGameMode("multi")} className="accent-black pointer-events-none" />
+                    <div className="font-bold text-sm">Multi Sets Match</div>
                   </div>
-                </label>
-
-                <label className={`flex items-center gap-3 border rounded p-3 cursor-pointer transition-all ${gameMode === "bestof" ? "border-black bg-white" : "border-gray-200"}`}>
-                  <input type="radio" name="mode" value="bestof" checked={gameMode === "bestof"} onChange={() => setGameMode("bestof")} className="accent-black" />
-                  <div className="flex-1">
-                    <div className="font-bold text-sm mb-2">Best Sets Match</div>
-                    {gameMode === "bestof" && (
-                      <div className="flex items-center gap-4 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Wins needed:</span>
-                          <input type="number" min={2} max={10} value={bestOfSets}
-                            onChange={(e) => setBestOfSets(Math.min(10, Math.max(2, Number(e.target.value))))}
-
-                            className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
-                          <span className="text-sm text-gray-400">{bestOfLabel(bestOfSets)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Order:</span>
-                          <select value={orderPattern}
-                            onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
-                            <option value="reverse">Reverse</option>
-                            <option value="slide">Slide</option>
-                          </select>
-                        </div>
+                  {gameMode === "multi" && (
+                    <div className="flex items-center gap-4 flex-wrap mt-2 pl-7">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">Sets:</span>
+                        <input type="number" inputMode="numeric" min={2} max={20} value={totalSets}
+                          onChange={(e) => setTotalSets(Math.min(20, Math.max(2, Number(e.target.value) || 2)))}
+                          className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
+                        <span className="text-sm text-gray-400">(2–20)</span>
                       </div>
-                    )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">Order:</span>
+                        <select value={orderPattern}
+                          onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
+                          className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
+                          <option value="reverse">Reverse</option>
+                          <option value="slide">Slide</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={`border rounded p-3 transition-all ${gameMode === "bestof" ? "border-black bg-white" : "border-gray-200"}`}>
+                  <div onClick={() => setGameMode("bestof")} className="flex items-center gap-3 cursor-pointer">
+                    <input type="radio" name="mode" value="bestof" checked={gameMode === "bestof"} onChange={() => setGameMode("bestof")} className="accent-black pointer-events-none" />
+                    <div className="font-bold text-sm">Best Sets Match</div>
                   </div>
-                </label>
+                  {gameMode === "bestof" && (
+                    <div className="flex items-center gap-4 flex-wrap mt-2 pl-7">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">Wins needed:</span>
+                        <input type="number" inputMode="numeric" min={2} max={10} value={bestOfSets}
+                          onChange={(e) => setBestOfSets(Math.min(10, Math.max(2, Number(e.target.value) || 2)))}
+                          className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:border-black" />
+                        <span className="text-sm text-gray-400">{bestOfLabel(bestOfSets)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">Order:</span>
+                        <select value={orderPattern}
+                          onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
+                          className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
+                          <option value="reverse">Reverse</option>
+                          <option value="slide">Slide</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
