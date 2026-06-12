@@ -188,9 +188,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     };
   }, []);
 
-  // ドラッグ＆ドロップ（プレイヤーカード並び替え）
+  // ドラッグ＆ドロップ（プレイヤーカード並び替え） + タップ選択（スマホ用）
   const dragCardIdx = useRef<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [selectedCardIdx, setSelectedCardIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "games", id), (snap) => {
@@ -442,9 +443,21 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                   dragCardIdx.current = null; setDragOverIdx(null);
                 }}
                 onDragEnd={() => { dragCardIdx.current = null; setDragOverIdx(null); }}
+                onClick={() => {
+                  if (game.status === "finished" && isMultiSet) return;
+                  if (selectedCardIdx === null) {
+                    setSelectedCardIdx(displayIdx);
+                  } else if (selectedCardIdx === displayIdx) {
+                    setSelectedCardIdx(null);
+                  } else {
+                    swapTurnOrder(selectedCardIdx, displayIdx);
+                    setSelectedCardIdx(null);
+                  }
+                }}
               >
-                <div className={`border rounded p-3 text-center transition-all cursor-grab active:cursor-grabbing ${
+                <div className={`border rounded p-3 text-center transition-all cursor-pointer active:scale-95 ${
                   dragOverIdx === displayIdx ? "opacity-60 scale-95" :
+                  selectedCardIdx === displayIdx ? "border-blue-500 border-[3px] bg-blue-50" :
                   player.isEliminated ? "border-gray-100 bg-gray-50 opacity-40" :
                   isCurrent ? "border-orange-400 border-[3px] bg-orange-50" :
                   "border-gray-200"
