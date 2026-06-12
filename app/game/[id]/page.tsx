@@ -64,11 +64,6 @@ function applyOrderPattern(players: Player[], pattern: string, nextSet: number):
   return players.map((p, i) => ({ ...p, turnOrder: baseOrder[i] }));
 }
 
-// bestOfSets = 勝利必要セット数 → Best of (2n-1) 表示
-function bestOfLabel(bestOfSets: number) {
-  return `Best of ${bestOfSets * 2 - 1}`;
-}
-
 // セット内の勝者判定（最高得点者、isEliminated除く）
 function getSetWinnerId(players: Player[]): string | null {
   const active = players.filter((p) => !p.isEliminated);
@@ -335,7 +330,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
   const modeInfo = () => {
     if (game.gameMode === "multi") return `Set ${game.currentSet} / ${game.totalSets}`;
-    if (game.gameMode === "bestof") return `Set ${game.currentSet} · ${bestOfLabel(game.bestOfSets)}`;
+    if (game.gameMode === "bestof") {
+      const wins = game.players.map((p) => `${p.name}:${p.setsWon}`).join(" ");
+      return `Set ${game.currentSet} · First to ${game.bestOfSets} · ${wins}`;
+    }
     return null;
   };
 
@@ -360,7 +358,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   return (
     <div className="min-h-screen bg-white text-black pb-10" style={{ fontFamily: "メイリオ, Meiryo, sans-serif" }}>
       <header className="border-b border-gray-200 px-4 py-4 flex items-center justify-between">
-        <button onClick={() => router.push("/")} className="text-gray-400 hover:text-black text-sm transition-colors">← 一覧</button>
+        <button onClick={() => router.push("/")} className="text-gray-400 hover:text-black text-sm transition-colors">← Recent Match</button>
         <div className="text-center">
           <h1 className="font-bold">Mölkky Score Seva</h1>
           <div className="text-xs text-gray-400">{modeName()}</div>

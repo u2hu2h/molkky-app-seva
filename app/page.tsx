@@ -192,7 +192,6 @@ function HomePageInner() {
                   <input type="radio" name="mode" value="single" checked={gameMode === "single"} onChange={() => setGameMode("single")} className="accent-black pointer-events-none" />
                   <div>
                     <div className="font-bold text-sm">1 Set Match</div>
-                    <div className="text-xs text-gray-400">Single set only</div>
                   </div>
                 </div>
 
