@@ -150,6 +150,43 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   const [undoing, setUndoing] = useState(false);
   const [showNextSet, setShowNextSet] = useState(false);
   const [setWinnerId, setSetWinnerId] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  // カウントダウンタイマー（得点入力5秒後に60秒からカウントダウン）
+  const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const startCountdown = () => {
+    if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
+    if (intervalTimerRef.current) clearInterval(intervalTimerRef.current);
+    setCountdown(null);
+    delayTimerRef.current = setTimeout(() => {
+      setCountdown(60);
+      intervalTimerRef.current = setInterval(() => {
+        setCountdown((c) => {
+          if (c === null) return null;
+          if (c <= 0) {
+            if (intervalTimerRef.current) clearInterval(intervalTimerRef.current);
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
+    }, 5000);
+  };
+
+  const stopCountdown = () => {
+    if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
+    if (intervalTimerRef.current) clearInterval(intervalTimerRef.current);
+    setCountdown(null);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
+      if (intervalTimerRef.current) clearInterval(intervalTimerRef.current);
+    };
+  }, []);
 
   // ドラッグ＆ドロップ（プレイヤーカード並び替え）
   const dragCardIdx = useRef<number | null>(null);
@@ -173,6 +210,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   const submitScore = async (score: number) => {
     if (!game || game.status !== "playing" || submitting) return;
     setSubmitting(true);
+    startCountdown();
     const currentPlayer = game.players[game.currentTurn];
     const { updatedPlayers, nextTurn, wasReset, scoreAfter } =
       calcNextState(game.players, game.currentTurn, score, game.winScore);
@@ -189,6 +227,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
     // セット決着判定
     if (isSetOver(updatedPlayers, game.winScore)) {
+      stopCountdown();
       const wid = getSetWinnerId(updatedPlayers);
       setSetWinnerId(wid);
       const updatedGame: Game = { ...game, players: updatedPlayers };
@@ -234,6 +273,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     if (!game || turns.length === 0) return;
     setUndoing(true);
     setShowNextSet(false);
+    stopCountdown();
     const lastTurn = turns[0];
     const snapshot = (lastTurn as any).snapshot;
     if (snapshot) {
@@ -421,7 +461,13 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                   <div className="text-xs font-bold text-red-500 mb-1 min-h-[16px]">
                     {player.missCount > 0 ? "×".repeat(player.missCount) : ""}
                   </div>
-                  <div className={`text-3xl font-bold ${player.totalScore === game.winScore ? "text-yellow-500" : "text-black"}`}>
+                  <div className={`text-3xl font-bold ${
+                    player.missCount >= 2 && player.totalScore === game.winScore - 1
+                      ? "text-red-600 animate-pulse"
+                      : player.missCount >= 2
+                      ? "text-red-600"
+                      : player.totalScore === game.winScore ? "text-yellow-500" : "text-black"
+                  }`}>
                     {player.totalScore}
                   </div>
                   {player.isEliminated && <div className="text-xs text-red-500 mt-1">脱落</div>}
@@ -459,18 +505,37 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                 </button>
               ))}
             </div>
-            <button onClick={() => submitScore(0)} disabled={submitting}
-              className="w-full border border-red-300 text-red-500 font-bold text-sm py-3 rounded hover:bg-red-50 disabled:opacity-50 transition-colors">
-              ×
-            </button>
+            <div className="flex items-stretch gap-2">
+              <button onClick={() => submitScore(0)} disabled={submitting}
+                className="flex-1 border border-red-300 text-red-500 font-bold text-sm py-3 rounded hover:bg-red-50 disabled:opacity-50 transition-colors">
+                ×
+              </button>
+              <button onClick={undoLastTurn} disabled={undoing || turns.length === 0}
+                className="flex-1 border border-gray-300 text-gray-600 text-sm py-3 rounded hover:border-black hover:text-black disabled:opacity-50 transition-colors">
+                {undoing ? "..." : "Turn Back"}
+              </button>
+              <div className={`flex items-center justify-center w-14 font-bold text-lg rounded border ${
+                countdown !== null && countdown <= 10 ? "border-red-300 text-red-600" : "border-gray-300 text-black"
+              }`}>
+                {countdown !== null ? countdown : ""}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Turn Back */}
-        {turns.length > 0 && (game.status === "finished" || (game.status === "playing" && !showNextSet) || showNextSet) && (
+        {/* Turn Back（セット間・終了時） */}
+        {turns.length > 0 && (game.status === "finished" || showNextSet) && (
           <button onClick={undoLastTurn} disabled={undoing}
             className="w-full border border-gray-300 text-gray-600 text-sm py-3 rounded hover:border-black hover:text-black disabled:opacity-50 transition-colors">
             {undoing ? "..." : "Turn Back"}
+          </button>
+        )}
+
+        {/* 試合終了後: +New */}
+        {game.status === "finished" && (
+          <button onClick={() => router.push("/?new=1")}
+            className="w-full bg-black text-white font-bold text-sm py-3 rounded hover:bg-gray-800 transition-colors">
+            ＋ New
           </button>
         )}
       </div>

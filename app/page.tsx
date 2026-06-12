@@ -1,12 +1,15 @@
 "use client";
 // app/page.tsx
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   collection, addDoc, onSnapshot, query, orderBy, serverTimestamp,
+  deleteDoc, doc, writeBatch, limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Game, GameMode, OrderPattern } from "@/types/molkky";
+
+const PLAYER_NAMES_KEY = "molkky_player_names";
 
 function bestOfLabel(bestOfSets: number) {
   return `Best of ${bestOfSets * 2 - 1}`;
@@ -17,19 +20,46 @@ function modeName(mode: GameMode) {
   return "1 Set Match";
 }
 
-export default function HomePage() {
+function HomePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [games, setGames] = useState<Game[]>([]);
   const [playerNames, setPlayerNames] = useState<string[]>(["", ""]);
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [gameMode, setGameMode] = useState<GameMode>("single");
-  const [totalSets, setTotalSets] = useState(3);
-  const [bestOfSets, setBestOfSets] = useState(3);
+  const [totalSets, setTotalSets] = useState(2);
+  const [bestOfSets, setBestOfSets] = useState(2);
   const [orderPattern, setOrderPattern] = useState<OrderPattern>("reverse");
+  const [deleting, setDeleting] = useState(false);
+
+  // 直前の入力値を復元
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PLAYER_NAMES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 2) {
+          setPlayerNames(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // 入力値を保存
+  useEffect(() => {
+    try {
+      localStorage.setItem(PLAYER_NAMES_KEY, JSON.stringify(playerNames));
+    } catch {}
+  }, [playerNames]);
+
+  // ?new=1 でConf.を自動オープン
+  useEffect(() => {
+    if (searchParams.get("new") === "1") setShowForm(true);
+  }, [searchParams]);
 
   useEffect(() => {
-    const q = query(collection(db, "games"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "games"), orderBy("createdAt", "desc"), limit(20));
     const unsub = onSnapshot(q, (snap) => {
       setGames(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Game)));
     });
@@ -47,6 +77,25 @@ export default function HomePage() {
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
     setPlayerNames(next);
+  };
+  const clearPlayers = () => setPlayerNames(["", ""]);
+
+  // Recent Match: 最大20件（Firestore側でlimit済み）
+  const visibleGames = games;
+
+  const deleteGame = async (gameId: string) => {
+    if (!confirm("このマッチを削除しますか？")) return;
+    await deleteDoc(doc(db, "games", gameId));
+  };
+
+  const deleteAllGames = async () => {
+    if (visibleGames.length === 0) return;
+    if (!confirm(`表示中の${visibleGames.length}件をすべて削除しますか？`)) return;
+    setDeleting(true);
+    const batch = writeBatch(db);
+    visibleGames.forEach((g) => batch.delete(doc(db, "games", g.id)));
+    await batch.commit();
+    setDeleting(false);
   };
 
   const createGame = async () => {
@@ -122,10 +171,16 @@ export default function HomePage() {
                   </div>
                 ))}
               </div>
-              <button onClick={addPlayer}
-                className="mt-2 border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded hover:border-black hover:text-black transition-colors">
-                ＋ Add
-              </button>
+              <div className="mt-2 flex gap-2">
+                <button onClick={addPlayer}
+                  className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded hover:border-black hover:text-black transition-colors">
+                  ＋ Add
+                </button>
+                <button onClick={clearPlayers}
+                  className="border border-gray-300 text-gray-600 text-sm px-4 py-2 rounded hover:border-red-400 hover:text-red-500 transition-colors">
+                  Clear
+                </button>
+              </div>
             </div>
 
             {/* ゲームモード選択 */}
@@ -211,29 +266,43 @@ export default function HomePage() {
 
         {/* Game List */}
         <div>
-          <h2 className="text-xs tracking-widest text-gray-400 mb-4">Recent Match</h2>
-          {games.length === 0 ? (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xs tracking-widest text-gray-400">Recent Match</h2>
+            {visibleGames.length > 0 && (
+              <button onClick={deleteAllGames} disabled={deleting}
+                className="text-xs text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-300 rounded px-2 py-1 transition-colors disabled:opacity-50">
+                {deleting ? "Deleting..." : "Delete All"}
+              </button>
+            )}
+          </div>
+          {visibleGames.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-12">No matches yet</p>
           ) : (
             <div className="space-y-2">
-              {games.map((g) => {
+              {visibleGames.map((g) => {
                 const { text, cls } = statusLabel(g.status);
                 const winner = g.winnerId ? g.players.find((p) => p.id === g.winnerId)?.name : null;
                 return (
-                  <button key={g.id} onClick={() => router.push(`/game/${g.id}`)}
-                    className="w-full text-left border border-gray-200 rounded p-4 hover:border-gray-400 hover:bg-gray-50 transition-all">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-sm text-black">{g.players.map((p) => p.name).join(" · ")}</div>
-                        <div className="text-xs text-gray-400 mt-0.5">{modeName(g.gameMode)} · {modeLabel(g)}</div>
-                        {winner && <div className="text-xs text-yellow-600 mt-1">🏆 {winner} WIN!!</div>}
-                        <div className="text-xs text-gray-400 mt-1">
-                          {g.createdAt?.toDate?.()?.toLocaleString("ja-JP") ?? "—"}
+                  <div key={g.id}
+                    className="w-full border border-gray-200 rounded p-4 hover:border-gray-400 hover:bg-gray-50 transition-all flex items-start gap-2">
+                    <button onClick={() => router.push(`/game/${g.id}`)} className="flex-1 text-left">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="text-sm text-black">{g.players.map((p) => p.name).join(" · ")}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">{modeName(g.gameMode)} · {modeLabel(g)}</div>
+                          {winner && <div className="text-xs text-yellow-600 mt-1">🏆 {winner} WIN!!</div>}
+                          <div className="text-xs text-gray-400 mt-1">
+                            {g.createdAt?.toDate?.()?.toLocaleString("ja-JP") ?? "—"}
+                          </div>
                         </div>
+                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${cls}`}>{text}</span>
                       </div>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${cls}`}>{text}</span>
-                    </div>
-                  </button>
+                    </button>
+                    <button onClick={() => deleteGame(g.id)}
+                      className="text-gray-300 hover:text-red-500 text-lg px-2 self-center transition-colors">
+                      ×
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -241,5 +310,13 @@ export default function HomePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomePageInner />
+    </Suspense>
   );
 }
