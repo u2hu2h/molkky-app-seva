@@ -178,9 +178,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     };
   }, []);
 
-  // ドラッグ＆ドロップ（プレイヤーカード並び替え） + タップ選択（スマホ用）
-  const dragCardIdx = useRef<number | null>(null);
-  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  // タップ選択による並び替え（PC/スマホ共通）
   const [selectedCardIdx, setSelectedCardIdx] = useState<number | null>(null);
 
   useEffect(() => {
@@ -428,14 +426,6 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
               <div
                 key={player.id}
                 className="flex flex-col gap-2"
-                draggable={game.status === "playing"}
-                onDragStart={() => { dragCardIdx.current = displayIdx; }}
-                onDragOver={(e) => { e.preventDefault(); setDragOverIdx(displayIdx); }}
-                onDrop={() => {
-                  if (dragCardIdx.current !== null) swapTurnOrder(dragCardIdx.current, displayIdx);
-                  dragCardIdx.current = null; setDragOverIdx(null);
-                }}
-                onDragEnd={() => { dragCardIdx.current = null; setDragOverIdx(null); }}
                 onClick={() => {
                   if (game.status === "finished" && isMultiSet) return;
                   if (selectedCardIdx === null) {
@@ -449,7 +439,6 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                 }}
               >
                 <div className={`border rounded p-3 text-center transition-all cursor-pointer active:scale-95 ${
-                  dragOverIdx === displayIdx ? "opacity-60 scale-95" :
                   selectedCardIdx === displayIdx ? "border-blue-500 border-[3px] bg-blue-50" :
                   player.isEliminated ? "border-gray-100 bg-gray-50 opacity-40" :
                   isCurrent ? "border-orange-400 border-[3px] bg-orange-50" :
