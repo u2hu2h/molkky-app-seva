@@ -11,9 +11,6 @@ import { Game, GameMode, OrderPattern } from "@/types/molkky";
 
 const PLAYER_NAMES_KEY = "molkky_player_names";
 
-function bestOfLabel(bestOfSets: number) {
-  return `Best of ${bestOfSets * 2 - 1}`;
-}
 function modeName(mode: GameMode) {
   if (mode === "multi") return "Multi Sets Match";
   if (mode === "bestof") return "Best Sets Match";
@@ -27,7 +24,7 @@ function HomePageInner() {
   const [playerNames, setPlayerNames] = useState<string[]>(["", ""]);
   const [creating, setCreating] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [gameMode, setGameMode] = useState<GameMode>("single");
+  const [gameMode, setGameMode] = useState<GameMode>("multi");
   const [totalSets, setTotalSets] = useState(2);
   const [bestOfSets, setBestOfSets] = useState(2);
   const [orderPattern, setOrderPattern] = useState<OrderPattern>("reverse");
@@ -128,7 +125,7 @@ function HomePageInner() {
 
   const modeLabel = (g: Game) => {
     if (g.gameMode === "multi") return `${g.totalSets} Sets`;
-    if (g.gameMode === "bestof") return bestOfLabel(g.bestOfSets);
+    if (g.gameMode === "bestof") return `First to ${g.bestOfSets}`;
     return "1 Set";
   };
 
@@ -237,7 +234,6 @@ function HomePageInner() {
                         <span className="w-8 text-center text-sm font-bold">{bestOfSets}</span>
                         <button type="button" onClick={() => setBestOfSets((v) => Math.min(10, v + 1))}
                           className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">＋</button>
-                        <span className="text-sm text-gray-400">{bestOfLabel(bestOfSets)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm">Order:</span>

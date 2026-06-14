@@ -37,31 +37,26 @@ function calcNextState(players: Player[], currentTurn: number, inputScore: numbe
   return { updatedPlayers, nextTurn, wasReset, scoreAfter: newTotal };
 }
 
-function reverseOrder(players: Player[], baseOrder: number[]): Player[] {
+// Reverse: 現在の表示順を反転
+function reverseOrder(players: Player[]): Player[] {
   const n = players.length;
-  return players.map((p, i) => ({ ...p, turnOrder: n - 1 - baseOrder[i] }));
+  return players.map((p) => ({ ...p, turnOrder: n - 1 - p.turnOrder }));
 }
-// Slide: (set番号-1) だけ前にずらす。base=0番目だった人が setNumber-1 番目に来る
-function slideOrder(players: Player[], baseOrder: number[], nextSet: number): Player[] {
+// Slide: 現在の表示順を1つ前にずらす（先頭が最後尾へ）
+function slideOrder(players: Player[]): Player[] {
   const n = players.length;
-  const shift = (nextSet - 1) % n;
-  return players.map((p, i) => ({ ...p, turnOrder: (baseOrder[i] - shift + n) % n }));
+  return players.map((p) => ({ ...p, turnOrder: (p.turnOrder - 1 + n) % n }));
 }
 function orderByTotalScore(players: Player[]): Player[] {
   const sorted = [...players].sort((a, b) => b.totalSetScore - a.totalSetScore);
   return players.map((p) => ({ ...p, turnOrder: sorted.findIndex((s) => s.id === p.id) }));
 }
-// orderPatternとセット番号に応じた並び替え（baseOrderは players配列のindex順=ゲーム作成時の元順）
-function applyOrderPattern(players: Player[], pattern: string, nextSet: number): Player[] {
-  const baseOrder = players.map((_, i) => i);
-  if (pattern === "reverse") {
-    return nextSet % 2 === 0 ? reverseOrder(players, baseOrder) : players.map((p, i) => ({ ...p, turnOrder: baseOrder[i] }));
-  }
-  if (pattern === "slide") {
-    return slideOrder(players, baseOrder, nextSet);
-  }
-  // fixed
-  return players.map((p, i) => ({ ...p, turnOrder: baseOrder[i] }));
+// orderPatternに応じて、現在の表示順(=手動入れ替え後の順序)を基準に次セットの順序を決める
+function applyOrderPattern(players: Player[], pattern: string): Player[] {
+  if (pattern === "reverse") return reverseOrder(players);
+  if (pattern === "slide") return slideOrder(players);
+  // fixed（既存データ互換用）: 現在の表示順をそのまま維持
+  return players;
 }
 
 // セット内の勝者判定（最高得点者、isEliminated除く）
@@ -119,14 +114,14 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
   let reorderedPlayers = updatedPlayers;
   if (gameMode === "bestof") {
     const maxWins = Math.max(...updatedPlayers.map((p) => p.setsWon));
-    const isDecider = updatedPlayers.filter((p) => p.setsWon === maxWins).length > 1
-      && maxWins === bestOfSets - 1;
+    // 誰かが setsWon === bestOfSets-1 に達していれば、次セットは「決着しうるセット」
+    const isDecider = maxWins === bestOfSets - 1;
     reorderedPlayers = isDecider
       ? orderByTotalScore(updatedPlayers)
-      : applyOrderPattern(updatedPlayers, game.orderPattern ?? "fixed", nextSet);
+      : applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
   } else {
     // multi: 最終セットも含めてパターン通りの順序
-    reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "fixed", nextSet);
+    reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
   }
 
   const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
