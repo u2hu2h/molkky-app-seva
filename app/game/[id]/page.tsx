@@ -113,9 +113,9 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
   // 次セットのプレイヤー順
   let reorderedPlayers = updatedPlayers;
   if (gameMode === "bestof") {
-    const maxWins = Math.max(...updatedPlayers.map((p) => p.setsWon));
-    // 誰かが setsWon === bestOfSets-1 に達していれば、次セットは「決着しうるセット」
-    const isDecider = maxWins === bestOfSets - 1;
+    // 全員が bestOfSets-1 勝で並んだ = 全員が「あと1セットで優勝」の状態
+    // → 次セットは誰が勝っても試合終了が確定する「最終セット」
+    const isDecider = updatedPlayers.every((p) => p.setsWon === bestOfSets - 1);
     reorderedPlayers = isDecider
       ? orderByTotalScore(updatedPlayers)
       : applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
@@ -278,7 +278,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     setUndoing(false);
   };
 
-  // プレイヤーカードのD&Dで turnOrder を入れ替え
+  // タップでプレイヤーの表示位置を入れ替え（turnOrder）
   const swapTurnOrder = async (fromDisplayIdx: number, toDisplayIdx: number) => {
     if (!game || fromDisplayIdx === toDisplayIdx) return;
     const ordered = [...game.players].sort((a, b) => a.turnOrder - b.turnOrder);
@@ -290,6 +290,16 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
       return p;
     });
     await updateDoc(doc(db, "games", id), { players: newPlayers });
+  };
+
+  // タップしたプレイヤーを「現在の入力対象」にする
+  const setCurrentPlayerByDisplayIdx = async (displayIdx: number) => {
+    if (!game || game.status !== "playing") return;
+    const ordered = [...game.players].sort((a, b) => a.turnOrder - b.turnOrder);
+    const target = ordered[displayIdx];
+    const arrayIdx = game.players.findIndex((p) => p.id === target.id);
+    if (arrayIdx === -1 || arrayIdx === game.currentTurn) return;
+    await updateDoc(doc(db, "games", id), { currentTurn: arrayIdx });
   };
 
   if (!game) {
@@ -430,6 +440,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                   if (game.status === "finished" && isMultiSet) return;
                   if (selectedCardIdx === null) {
                     setSelectedCardIdx(displayIdx);
+                    setCurrentPlayerByDisplayIdx(displayIdx);
                   } else if (selectedCardIdx === displayIdx) {
                     setSelectedCardIdx(null);
                   } else {
