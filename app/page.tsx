@@ -144,7 +144,7 @@ function HomePageInner() {
           <p className="text-xs text-gray-400 mt-0.5">SCORE TRACKER</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
-          className="bg-black text-white font-bold text-sm px-5 py-2.5 rounded hover:bg-gray-800 transition-colors">
+          className="bg-gray-400 text-white font-bold text-sm px-5 py-2.5 rounded hover:bg-gray-500 transition-colors">
           ＋ New
         </button>
       </header>
@@ -249,7 +249,6 @@ function HomePageInner() {
                         <input type="checkbox" id="duce" checked={duceMode} onChange={(e) => setDuceMode(e.target.checked)}
                           className="accent-black w-4 h-4" />
                         <label htmlFor="duce" className="text-sm font-medium cursor-pointer">Duce</label>
-                        <span className="text-xs text-gray-400">（全員が最大-1勝で並んだ後、連続取得で勝利）</span>
                       </div>
                     </div>
                   )}
@@ -261,13 +260,13 @@ function HomePageInner() {
             <div className="mb-5 border border-gray-200 rounded p-3">
               <div className="text-sm font-bold mb-2">Throwing time Sec.</div>
               <div className="flex items-center gap-3 flex-wrap">
-                <label className={`flex items-center gap-1.5 cursor-pointer text-sm px-3 py-1.5 rounded border transition-all ${throwingTimeOption === "60" ? "border-black bg-black text-white" : "border-gray-300"}`}>
+                <label className={`flex items-center gap-1.5 cursor-pointer text-sm px-3 py-1.5 rounded border transition-all ${throwingTimeOption === "60" ? "border-gray-400 bg-gray-400 text-white" : "border-gray-300"}`}>
                   <input type="radio" name="ttime" value="60" checked={throwingTimeOption === "60"}
                     onChange={() => { setThrowingTimeOption("60"); setThrowingTimeSec(60); }}
                     className="hidden" />
                   60
                 </label>
-                <label className={`flex items-center gap-1.5 cursor-pointer text-sm px-3 py-1.5 rounded border transition-all ${throwingTimeOption === "40" ? "border-black bg-black text-white" : "border-gray-300"}`}>
+                <label className={`flex items-center gap-1.5 cursor-pointer text-sm px-3 py-1.5 rounded border transition-all ${throwingTimeOption === "40" ? "border-gray-400 bg-gray-400 text-white" : "border-gray-300"}`}>
                   <input type="radio" name="ttime" value="40" checked={throwingTimeOption === "40"}
                     onChange={() => { setThrowingTimeOption("40"); setThrowingTimeSec(40); }}
                     className="hidden" />
@@ -297,7 +296,7 @@ function HomePageInner() {
 
             <div className="flex justify-end">
               <button onClick={createGame} disabled={creating}
-                className="bg-black text-white font-bold text-sm px-6 py-2 rounded hover:bg-gray-800 disabled:opacity-50 transition-colors">
+                className="bg-gray-400 text-white font-bold text-sm px-6 py-2 rounded hover:bg-gray-500 disabled:opacity-50 transition-colors">
                 {creating ? "Starting..." : "Match Begin"}
               </button>
             </div>

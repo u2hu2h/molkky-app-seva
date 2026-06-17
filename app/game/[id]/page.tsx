@@ -111,30 +111,28 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
     return { ...p, totalScore: 0, missCount: 0, isEliminated: false, setsWon, totalSetScore };
   });
 
-  // Best of: 誰かが必要勝利数に達したらゲーム終了（Duceモード考慮）
+  // Best of ロジック
   if (gameMode === "bestof") {
-    const champion = updatedPlayers.find((p) => p.setsWon >= bestOfSets);
-    if (champion) {
-      if (game.duceMode) {
-        // Duceモード: 全員がbestOfSets-1勝で並んだ後（Duce状態）かチェック
-        const isDuceState = updatedPlayers.every((p) => p.setsWon >= bestOfSets - 1);
-        if (isDuceState) {
-          // 前セット勝者と今セット勝者が同じ場合のみ勝利
-          if (game.duceLeaderId && game.duceLeaderId === setWinnerId) {
-            return { players: updatedPlayers, status: "finished", winnerId: champion.id, duceLeaderId: null };
-          } else {
-            // 別の人が勝った = リードを更新してゲーム続行
-            const isDecider = updatedPlayers.every((p) => p.setsWon === bestOfSets - 1);
-            let reorderedPlayers = isDecider
-              ? orderByTotalScore(updatedPlayers)
-              : applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
-            const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
-            const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
-            return { players: reorderedPlayers, currentTurn: firstIdx, currentSet: nextSet, winnerId: null, status: "playing", duceLeaderId: setWinnerId };
-          }
+    const maxWins = Math.max(...updatedPlayers.map((p) => p.setsWon));
+    const playersAtMax = updatedPlayers.filter((p) => p.setsWon === maxWins);
+
+    if (maxWins >= bestOfSets) {
+      // 勝利条件に達したプレイヤーがいる
+      if (game.duceMode && playersAtMax.length > 1) {
+        // Duceモード: 複数が最大勝利数に達している → Duce継続
+        // 前セット勝者と今セット勝者が同じ → 2連続 → Match終了
+        if (game.duceLeaderId === setWinnerId && setWinnerId !== null) {
+          return { players: updatedPlayers, status: "finished", winnerId: setWinnerId, duceLeaderId: null };
         }
+        // 異なる人が勝った or 初めてDuce → リードを更新して続行
+        const reorderedPlayers = orderByTotalScore(updatedPlayers);
+        const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
+        const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
+        return { players: reorderedPlayers, currentTurn: firstIdx, currentSet: nextSet, winnerId: null, status: "playing", duceLeaderId: setWinnerId };
       }
-      return { players: updatedPlayers, status: "finished", winnerId: champion.id, duceLeaderId: null };
+      // Duceモードでないか、1人だけが最大勝利数 → 通常勝利
+      const champion = updatedPlayers.find((p) => p.setsWon === maxWins);
+      return { players: updatedPlayers, status: "finished", winnerId: champion?.id ?? null, duceLeaderId: null };
     }
   }
 
@@ -147,14 +145,11 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
   // 次セットのプレイヤー順
   let reorderedPlayers = updatedPlayers;
   if (gameMode === "bestof") {
-    // 全員が bestOfSets-1 勝で並んだ = 全員が「あと1セットで優勝」の状態
-    // → 次セットは誰が勝っても試合終了が確定する「最終セット」
-    const isDecider = updatedPlayers.every((p) => p.setsWon === bestOfSets - 1);
+    const isDecider = updatedPlayers.every((p) => p.setsWon === Math.max(...updatedPlayers.map((q) => q.setsWon)));
     reorderedPlayers = isDecider
       ? orderByTotalScore(updatedPlayers)
       : applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
   } else {
-    // multi: 最終セットも含めてパターン通りの順序
     reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
   }
 
@@ -441,29 +436,74 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
 
-        {/* 勝利バナー */}
+        {/* 勝利バナー + セット履歴 */}
         {game.status === "finished" && (
-          <div className="border-2 border-yellow-400 bg-yellow-50 p-4 text-center rounded">
-            <div className="text-3xl mb-1">🏆</div>
-            <div className="font-bold text-xl text-yellow-600">
-              {winner ? `${winner.name} WIN!!` : "Fin."}
-            </div>
-            {isMultiSet && (
-              <div className="flex justify-center gap-6 mt-3 text-sm">
-                {game.players.map((p) => (
-                  <div key={p.id} className="text-center">
-                    <div className="text-xs text-gray-400">{p.name}</div>
-                    {game.gameMode === "bestof"
-                      ? <div className="font-bold">{p.setsWon} sets won</div>
-                      : <div className="font-bold">
-                          {p.setsWon > 0 && <span className="text-yellow-500 mr-1">{p.setsWon}W</span>}
-                          Total ({p.totalSetScore})
-                        </div>
-                    }
-                  </div>
-                ))}
+          <div className="space-y-4">
+            <div className="border-2 border-yellow-400 bg-yellow-50 p-4 text-center rounded">
+              <div className="text-3xl mb-1">🏆</div>
+              <div className="font-bold text-xl text-yellow-600">
+                {winner ? `${winner.name} WIN!!` : "Fin."}
               </div>
-            )}
+              {isMultiSet && (
+                <div className="flex justify-center gap-6 mt-3 text-sm">
+                  {game.players.map((p) => (
+                    <div key={p.id} className="text-center">
+                      <div className="text-xs text-gray-400">{p.name}</div>
+                      {game.gameMode === "bestof"
+                        ? <div className="font-bold">{p.setsWon} sets won</div>
+                        : <div className="font-bold">
+                            {p.setsWon > 0 && <span className="text-yellow-500 mr-1">{p.setsWon}W</span>}
+                            Total ({p.totalSetScore})
+                          </div>
+                      }
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* セット別履歴（複数セット時） */}
+            {isMultiSet && (() => {
+              const maxSet = game.currentSet;
+              return (
+                <div className="border border-gray-200 rounded p-4">
+                  <div className="text-xs text-gray-400 mb-3 tracking-widest">SET HISTORY</div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-gray-400 font-normal pb-1">Player</th>
+                          {Array.from({ length: maxSet }, (_, i) => (
+                            <th key={i} className="text-center text-gray-400 font-normal pb-1 px-1">S{i + 1}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {game.players.map((player) => {
+                          const setScores: Record<number, number> = {};
+                          // turnsから各セットのscoreAfterの最終値を取得
+                          [...turns].reverse().forEach((t) => {
+                            if (t.playerId === player.id && t.setNumber) {
+                              setScores[t.setNumber] = t.scoreAfter;
+                            }
+                          });
+                          return (
+                            <tr key={player.id} className="border-t border-gray-100">
+                              <td className="py-1.5 pr-2 font-bold">{player.name}</td>
+                              {Array.from({ length: maxSet }, (_, i) => (
+                                <td key={i} className="text-center py-1.5 px-1">
+                                  {setScores[i + 1] !== undefined ? setScores[i + 1] : "—"}
+                                </td>
+                              ))}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -542,7 +582,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         {game.status === "playing" && currentPlayer && !showNextSet && (
           <div className="border border-gray-200 rounded p-5">
             <div className="flex items-center justify-center mb-4">
-              <div className="font-bold text-lg text-center">{currentPlayer.name}</div>
+              <div className="text-center">
+                <div className="text-xs text-gray-400 mb-0.5">Turn {turns.filter(t => t.setNumber === game.currentSet || !t.setNumber).length + 1}</div>
+                <div className="font-bold text-lg">{currentPlayer.name}</div>
+              </div>
             </div>
             <div className="grid grid-cols-4 gap-2 mb-3">
               {numKeys.map((n) => (
