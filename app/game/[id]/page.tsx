@@ -257,23 +257,14 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           players: updatedPlayers, currentTurn: nextTurn,
           status: "finished", winnerId: wid,
         });
-      } else if (game.gameMode === "bestof") {
-        const next = prepareNextSet(updatedGame, wid);
-        if (next.status === "finished") {
-          await updateDoc(doc(db, "games", id), { ...next, currentTurn: nextTurn });
-        } else {
-          await updateDoc(doc(db, "games", id), { players: updatedPlayers, currentTurn: nextTurn, winnerId: null, status: "playing" });
-          setShowNextSet(true);
-        }
       } else {
-        // multi
-        if (game.currentSet >= game.totalSets) {
-          const next = prepareNextSet(updatedGame, wid);
-          await updateDoc(doc(db, "games", id), { ...next, currentTurn: nextTurn });
-        } else {
-          await updateDoc(doc(db, "games", id), { players: updatedPlayers, currentTurn: nextTurn, winnerId: null, status: "playing" });
-          setShowNextSet(true);
-        }
+        // multi/bestof: 常にshowNextSetダイアログを経由
+        // （DuceかどうかはconfirmNextSet内のprepareNextSetで判定）
+        await updateDoc(doc(db, "games", id), {
+          players: updatedPlayers, currentTurn: nextTurn,
+          winnerId: null, status: "playing",
+        });
+        setShowNextSet(true);
       }
     } else {
       await updateDoc(doc(db, "games", id), { players: updatedPlayers, currentTurn: nextTurn, winnerId: null, status: "playing" });
@@ -286,6 +277,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     if (!game) return;
     setShowNextSet(false);
     const next = prepareNextSet(game, setWinnerId);
+    // prepareNextSet の結果をそのままFirestoreに保存（finished含む）
     await updateDoc(doc(db, "games", id), next);
   };
 
@@ -342,7 +334,6 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   }
 
   const isMultiSet = game.gameMode !== "single";
-  const isFinalSet = game.gameMode === "multi" && game.currentSet >= game.totalSets;
   const currentPlayer = game.players[game.currentTurn];
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) : null;
   const setWinnerName = setWinnerId ? game.players.find((p) => p.id === setWinnerId)?.name : null;
@@ -376,15 +367,32 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     return null;
   };
 
-  // 2セット目以降の表示ラベル: (W1-72) or (XW) (72)
+  // Turn数: 現在セットで「turnOrder=0 のプレイヤー」が何回入力したか + 1
+  const currentSetTurns = turns.filter((t) => t.setNumber === game.currentSet || !t.setNumber);
+  const numPlayers = game.players.length;
+  const turnNumber = Math.floor(currentSetTurns.length / numPlayers) + 1;
+
+  // 2セット目以降の表示ラベル: 直前セット含めた setsWon を表示
+  // セット終了ダイアログ中(showNextSet)は +1 した値を表示
   const playerLabel = (player: Player) => {
     if (!isMultiSet) return null;
     const total = player.totalSetScore + player.totalScore;
+    const displayWins = player.setsWon; // prepareNextSet後はすでに+1済み
     if (game.gameMode === "bestof") {
-      return { wins: null, text: `(W${player.setsWon}-${total})` };
+      return { wins: null, text: `(W${displayWins}-${total})` };
     }
-    // multi: setsWon があれば黄色で表示
-    return { wins: player.setsWon > 0 ? `${player.setsWon}W` : null, text: `(${total})` };
+    return { wins: displayWins > 0 ? `${displayWins}W` : null, text: `(${total})` };
+  };
+
+  // セット終了ダイアログ用: 今セットの勝者を+1した表示
+  const playerLabelForDialog = (player: Player) => {
+    if (!isMultiSet) return null;
+    const setsWon = player.setsWon + (player.id === setWinnerId ? 1 : 0);
+    const total = player.totalSetScore + player.totalScore;
+    if (game.gameMode === "bestof") {
+      return `(W${setsWon}-${total})`;
+    }
+    return setsWon > 0 ? `${setsWon}W (${total})` : `(${total})`;
   };
 
   // 次セットの全プレイヤー順
@@ -423,15 +431,14 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                 <div key={p.id} className="text-center">
                   <div className="text-xs text-gray-400">{p.name}</div>
                   <div className="font-bold">
-                    {p.setsWon > 0 && <span className="text-yellow-500 mr-1">{p.setsWon}W</span>}
-                    ({p.totalSetScore + p.totalScore})
+                    {playerLabelForDialog(p)}
                   </div>
                 </div>
               ))}
             </div>
             <button onClick={confirmNextSet}
-              className="bg-black text-white font-bold px-8 py-2 rounded hover:bg-gray-800 transition-colors">
-              Next Set →
+              className="bg-gray-400 text-white font-bold px-8 py-2 rounded hover:bg-gray-500 transition-colors">
+              Next Set
             </button>
           </div>
         )}
@@ -583,7 +590,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           <div className="border border-gray-200 rounded p-5">
             <div className="flex items-center justify-center mb-4">
               <div className="text-center">
-                <div className="text-xs text-gray-400 mb-0.5">Turn {turns.filter(t => t.setNumber === game.currentSet || !t.setNumber).length + 1}</div>
+                <div className="text-xs text-gray-400 mb-0.5">Turn {turnNumber}</div>
                 <div className="font-bold text-lg">{currentPlayer.name}</div>
               </div>
             </div>
