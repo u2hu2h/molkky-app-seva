@@ -15,16 +15,29 @@ function calcNextState(players: Player[], currentTurn: number, inputScore: numbe
   const isMiss = inputScore === 0;
   let newTotal = player.totalScore;
   let newMissCount = isMiss ? player.missCount + 1 : 0;
-  let isEliminated = player.isEliminated;
   let wasReset = false;
+
   if (!isMiss) {
     newTotal = player.totalScore + inputScore;
     if (newTotal > winScore) { newTotal = Math.floor(winScore / 2); wasReset = true; }
   }
-  if (newMissCount >= 3) isEliminated = true;
-  const updatedPlayers = players.map((p, i) =>
+
+  // 3連続ミス: 得点を0にリセット、脱落フラグ
+  const isEliminated = newMissCount >= 3;
+  if (isEliminated) newTotal = 0;
+
+  let updatedPlayers = players.map((p, i) =>
     i === currentTurn ? { ...p, totalScore: newTotal, missCount: newMissCount, isEliminated } : p
   );
+
+  // active（非脱落）が1人だけ残った場合 → そのプレイヤーを winScore 点にしてセット終了
+  const activePlayers = updatedPlayers.filter((p) => !p.isEliminated);
+  if (activePlayers.length === 1) {
+    updatedPlayers = updatedPlayers.map((p) =>
+      p.id === activePlayers[0].id ? { ...p, totalScore: winScore } : p
+    );
+  }
+
   // turnOrder順に次の(脱落していない)プレイヤーへ
   const n = updatedPlayers.length;
   const currentDisplayOrder = updatedPlayers[currentTurn].turnOrder;
@@ -34,7 +47,9 @@ function calcNextState(players: Player[], currentTurn: number, inputScore: numbe
     const idx = updatedPlayers.findIndex((p) => p.turnOrder === targetOrder);
     if (idx !== -1 && !updatedPlayers[idx].isEliminated) { nextTurn = idx; break; }
   }
-  return { updatedPlayers, nextTurn, wasReset, scoreAfter: newTotal };
+
+  const scoreAfter = updatedPlayers[currentTurn]?.totalScore ?? newTotal;
+  return { updatedPlayers, nextTurn, wasReset, scoreAfter };
 }
 
 // Reverse: 現在の表示順を反転
@@ -451,11 +466,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
               >
                 <div className={`border rounded p-3 text-center transition-all cursor-pointer active:scale-95 ${
                   selectedCardIdx === displayIdx ? "border-blue-500 border-[3px] bg-blue-50" :
-                  player.isEliminated ? "border-gray-100 bg-gray-50 opacity-40" :
                   isCurrent ? "border-orange-400 border-[3px] bg-orange-50" :
                   "border-gray-200"
                 }`}>
-                  <div className={`font-bold text-sm mb-1 ${player.isEliminated ? "line-through text-gray-400" : ""}`}>
+                  <div className="font-bold text-sm mb-1 text-black">
                     {player.name}
                     {label && (
                       <span className="ml-1 text-xs font-normal">
@@ -465,10 +479,12 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                     )}
                   </div>
                   <div className="text-xs font-bold text-red-500 mb-1 min-h-[16px]">
-                    {player.missCount > 0 ? "×".repeat(player.missCount) : ""}
+                    {player.missCount > 0 ? "×".repeat(Math.min(player.missCount, 3)) : ""}
                   </div>
                   <div className={`text-3xl font-bold ${
-                    player.missCount >= 2 && player.totalScore === game.winScore - 1
+                    player.isEliminated
+                      ? "text-red-600"
+                      : player.missCount >= 2 && player.totalScore === game.winScore - 1
                       ? "text-red-600 animate-pulse"
                       : player.missCount >= 2
                       ? "text-red-600"
@@ -476,7 +492,6 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                   }`}>
                     {player.totalScore}
                   </div>
-                  {player.isEliminated && <div className="text-xs text-red-500 mt-1">脱落</div>}
                 </div>
 
                 {/* 履歴枠 */}

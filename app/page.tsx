@@ -12,7 +12,7 @@ import { Game, GameMode, OrderPattern } from "@/types/molkky";
 const PLAYER_NAMES_KEY = "molkky_player_names";
 
 function modeName(mode: GameMode) {
-  if (mode === "multi") return "Multi Sets Match";
+  if (mode === "multi") return "Set Match";
   if (mode === "bestof") return "Best Sets Match";
   return "1 Set Match";
 }
@@ -124,7 +124,7 @@ function HomePageInner() {
   };
 
   const modeLabel = (g: Game) => {
-    if (g.gameMode === "multi") return `${g.totalSets} Sets`;
+    if (g.gameMode === "multi") return `${g.totalSets} Set`;
     if (g.gameMode === "bestof") return `First to ${g.bestOfSets}`;
     return "1 Set";
   };
@@ -184,27 +184,19 @@ function HomePageInner() {
             <div className="mb-5">
               <div className="text-sm font-bold mb-3">Game Mode</div>
               <div className="space-y-2">
-                <div onClick={() => setGameMode("single")}
-                  className={`flex items-center gap-3 border rounded p-3 cursor-pointer transition-all ${gameMode === "single" ? "border-black bg-white" : "border-gray-200"}`}>
-                  <input type="radio" name="mode" value="single" checked={gameMode === "single"} onChange={() => setGameMode("single")} className="accent-black pointer-events-none" />
-                  <div>
-                    <div className="font-bold text-sm">1 Set Match</div>
-                  </div>
-                </div>
-
                 <div className={`border rounded p-3 transition-all ${gameMode === "multi" ? "border-black bg-white" : "border-gray-200"}`}>
                   <div onClick={() => setGameMode("multi")} className="flex items-center gap-3 cursor-pointer">
                     <input type="radio" name="mode" value="multi" checked={gameMode === "multi"} onChange={() => setGameMode("multi")} className="accent-black pointer-events-none" />
-                    <div className="font-bold text-sm">Multi Sets Match</div>
+                    <div className="font-bold text-sm">Set Match</div>
                   </div>
                   {gameMode === "multi" && (
                     <div className="flex items-center gap-4 flex-wrap mt-2 pl-7">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">Sets:</span>
-                        <button type="button" onClick={() => setTotalSets((v) => Math.max(2, v - 1))}
+                        <span className="text-sm">Set:</span>
+                        <button type="button" onClick={() => setTotalSets((v) => Math.max(1, v - 1))}
                           className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">−</button>
                         <span className="w-8 text-center text-sm font-bold">{totalSets}</span>
-                        <button type="button" onClick={() => setTotalSets((v) => Math.min(20, v + 1))}
+                        <button type="button" onClick={() => setTotalSets((v) => Math.min(99, v + 1))}
                           className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">＋</button>
                       </div>
                       <div className="flex items-center gap-2">
@@ -229,10 +221,10 @@ function HomePageInner() {
                     <div className="flex items-center gap-4 flex-wrap mt-2 pl-7">
                       <div className="flex items-center gap-2">
                         <span className="text-sm">Wins needed:</span>
-                        <button type="button" onClick={() => setBestOfSets((v) => Math.max(2, v - 1))}
+                        <button type="button" onClick={() => setBestOfSets((v) => Math.max(1, v - 1))}
                           className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">−</button>
                         <span className="w-8 text-center text-sm font-bold">{bestOfSets}</span>
-                        <button type="button" onClick={() => setBestOfSets((v) => Math.min(10, v + 1))}
+                        <button type="button" onClick={() => setBestOfSets((v) => Math.min(99, v + 1))}
                           className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">＋</button>
                       </div>
                       <div className="flex items-center gap-2">
