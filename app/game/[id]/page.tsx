@@ -111,11 +111,30 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
     return { ...p, totalScore: 0, missCount: 0, isEliminated: false, setsWon, totalSetScore };
   });
 
-  // Best of: 誰かが必要勝利数に達したらゲーム終了
+  // Best of: 誰かが必要勝利数に達したらゲーム終了（Duceモード考慮）
   if (gameMode === "bestof") {
     const champion = updatedPlayers.find((p) => p.setsWon >= bestOfSets);
     if (champion) {
-      return { players: updatedPlayers, status: "finished", winnerId: champion.id };
+      if (game.duceMode) {
+        // Duceモード: 全員がbestOfSets-1勝で並んだ後（Duce状態）かチェック
+        const isDuceState = updatedPlayers.every((p) => p.setsWon >= bestOfSets - 1);
+        if (isDuceState) {
+          // 前セット勝者と今セット勝者が同じ場合のみ勝利
+          if (game.duceLeaderId && game.duceLeaderId === setWinnerId) {
+            return { players: updatedPlayers, status: "finished", winnerId: champion.id, duceLeaderId: null };
+          } else {
+            // 別の人が勝った = リードを更新してゲーム続行
+            const isDecider = updatedPlayers.every((p) => p.setsWon === bestOfSets - 1);
+            let reorderedPlayers = isDecider
+              ? orderByTotalScore(updatedPlayers)
+              : applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
+            const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
+            const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
+            return { players: reorderedPlayers, currentTurn: firstIdx, currentSet: nextSet, winnerId: null, status: "playing", duceLeaderId: setWinnerId };
+          }
+        }
+      }
+      return { players: updatedPlayers, status: "finished", winnerId: champion.id, duceLeaderId: null };
     }
   }
 
@@ -142,7 +161,7 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
   const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
   const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
 
-  return { players: reorderedPlayers, currentTurn: firstIdx, currentSet: nextSet, winnerId: null, status: "playing" };
+  return { players: reorderedPlayers, currentTurn: firstIdx, currentSet: nextSet, winnerId: null, status: "playing", duceLeaderId: null };
 }
 
 // ─── メインコンポーネント ─────────────────────────────────────────────
@@ -165,8 +184,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
     if (intervalTimerRef.current) clearInterval(intervalTimerRef.current);
     setCountdown(null);
+    const sec = game?.throwingTimeSec ?? 60;
+    if (!sec || sec <= 0) return; // 0なら無効
     delayTimerRef.current = setTimeout(() => {
-      setCountdown(60);
+      setCountdown(sec);
       intervalTimerRef.current = setInterval(() => {
         setCountdown((c) => {
           if (c === null) return null;
@@ -350,7 +371,12 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     if (game.gameMode === "multi") return `Set ${game.currentSet} / ${game.totalSets}`;
     if (game.gameMode === "bestof") {
       const wins = game.players.map((p) => `${p.name}:${p.setsWon}`).join(" ");
-      return `Set ${game.currentSet} · First to ${game.bestOfSets} · ${wins}`;
+      const duceLabel = game.duceMode && game.duceLeaderId
+        ? ` · DUCE(${game.players.find(p => p.id === game.duceLeaderId)?.name} leads)`
+        : game.duceMode && game.players.every(p => p.setsWon >= game.bestOfSets - 1)
+        ? " · DUCE"
+        : "";
+      return `Set ${game.currentSet} · First to ${game.bestOfSets}${duceLabel} · ${wins}`;
     }
     return null;
   };

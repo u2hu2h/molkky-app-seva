@@ -28,6 +28,10 @@ function HomePageInner() {
   const [totalSets, setTotalSets] = useState(2);
   const [bestOfSets, setBestOfSets] = useState(2);
   const [orderPattern, setOrderPattern] = useState<OrderPattern>("reverse");
+  const [throwingTimeSec, setThrowingTimeSec] = useState(60);
+  const [throwingTimeCustom, setThrowingTimeCustom] = useState("");
+  const [throwingTimeOption, setThrowingTimeOption] = useState<"60" | "40" | "custom">("60");
+  const [duceMode, setDuceMode] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // 直前の入力値を復元
@@ -113,6 +117,9 @@ function HomePageInner() {
       bestOfSets: gameMode === "bestof" ? bestOfSets : 1,
       currentSet: 1,
       orderPattern,
+      throwingTimeSec,
+      duceMode: gameMode === "bestof" ? duceMode : false,
+      duceLeaderId: null,
     });
     router.push(`/game/${ref.id}`);
   };
@@ -218,27 +225,73 @@ function HomePageInner() {
                     <div className="font-bold text-sm">Best Sets Match</div>
                   </div>
                   {gameMode === "bestof" && (
-                    <div className="flex items-center gap-4 flex-wrap mt-2 pl-7">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">Wins needed:</span>
-                        <button type="button" onClick={() => setBestOfSets((v) => Math.max(1, v - 1))}
-                          className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">−</button>
-                        <span className="w-8 text-center text-sm font-bold">{bestOfSets}</span>
-                        <button type="button" onClick={() => setBestOfSets((v) => Math.min(99, v + 1))}
-                          className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">＋</button>
+                    <div className="mt-2 pl-7 space-y-2">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Wins needed:</span>
+                          <button type="button" onClick={() => setBestOfSets((v) => Math.max(1, v - 1))}
+                            className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">−</button>
+                          <span className="w-8 text-center text-sm font-bold">{bestOfSets}</span>
+                          <button type="button" onClick={() => setBestOfSets((v) => Math.min(99, v + 1))}
+                            className="w-8 h-8 border border-gray-300 rounded text-lg font-bold hover:bg-gray-100">＋</button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">Order:</span>
+                          <select value={orderPattern}
+                            onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
+                            <option value="reverse">Reverse</option>
+                            <option value="slide">Slide</option>
+                          </select>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">Order:</span>
-                        <select value={orderPattern}
-                          onChange={(e) => setOrderPattern(e.target.value as OrderPattern)}
-                          className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-black">
-                          <option value="reverse">Reverse</option>
-                          <option value="slide">Slide</option>
-                        </select>
+                        <input type="checkbox" id="duce" checked={duceMode} onChange={(e) => setDuceMode(e.target.checked)}
+                          className="accent-black w-4 h-4" />
+                        <label htmlFor="duce" className="text-sm font-medium cursor-pointer">Duce</label>
+                        <span className="text-xs text-gray-400">（全員が最大-1勝で並んだ後、連続取得で勝利）</span>
                       </div>
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* Throwing time Sec. */}
+            <div className="mb-5 border border-gray-200 rounded p-3">
+              <div className="text-sm font-bold mb-2">Throwing time Sec.</div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className={`flex items-center gap-1.5 cursor-pointer text-sm px-3 py-1.5 rounded border transition-all ${throwingTimeOption === "60" ? "border-black bg-black text-white" : "border-gray-300"}`}>
+                  <input type="radio" name="ttime" value="60" checked={throwingTimeOption === "60"}
+                    onChange={() => { setThrowingTimeOption("60"); setThrowingTimeSec(60); }}
+                    className="hidden" />
+                  60
+                </label>
+                <label className={`flex items-center gap-1.5 cursor-pointer text-sm px-3 py-1.5 rounded border transition-all ${throwingTimeOption === "40" ? "border-black bg-black text-white" : "border-gray-300"}`}>
+                  <input type="radio" name="ttime" value="40" checked={throwingTimeOption === "40"}
+                    onChange={() => { setThrowingTimeOption("40"); setThrowingTimeSec(40); }}
+                    className="hidden" />
+                  40
+                </label>
+                <label className={`flex items-center gap-1.5 cursor-pointer text-sm px-3 py-1.5 rounded border transition-all ${throwingTimeOption === "custom" ? "border-black" : "border-gray-300"}`}>
+                  <input type="radio" name="ttime" value="custom" checked={throwingTimeOption === "custom"}
+                    onChange={() => setThrowingTimeOption("custom")}
+                    className="hidden" />
+                  <span className="text-gray-500">Custom:</span>
+                  <input
+                    type="number" inputMode="numeric" min={1} max={999}
+                    value={throwingTimeCustom}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setThrowingTimeCustom(v);
+                      const n = parseInt(v);
+                      if (!isNaN(n) && n > 0) setThrowingTimeSec(n);
+                    }}
+                    onFocus={() => setThrowingTimeOption("custom")}
+                    placeholder="秒"
+                    className="w-14 border border-gray-300 rounded px-2 py-0.5 text-sm text-center focus:outline-none focus:border-black ml-1"
+                  />
+                </label>
               </div>
             </div>
 

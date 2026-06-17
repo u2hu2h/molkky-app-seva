@@ -26,10 +26,13 @@ export interface Game {
   winnerId: string | null;
   // ゲームモード
   gameMode: GameMode;
-  totalSets: number;       // multiの場合のセット数
-  bestOfSets: number;      // bestofの場合の勝利セット数
-  currentSet: number;      // 現在のセット番号
-  orderPattern: OrderPattern; // 表示順パターン（multi/bestof用）
+  totalSets: number;
+  bestOfSets: number;
+  currentSet: number;
+  orderPattern: OrderPattern;
+  throwingTimeSec: number;   // 投擲タイマー秒数（0=無効）
+  duceMode: boolean;         // Best Sets Match: Duceモード
+  duceLeaderId: string | null; // Duce中：直前のセット勝者（連続取得チェック用）
 }
 
 export interface Turn {
