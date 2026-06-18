@@ -443,6 +443,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           <h1 className="font-bold">Mölkky Score Seva</h1>
           <div className="text-xs text-gray-400">{modeName()}</div>
           {modeInfo() && <div className="text-xs text-gray-400">{modeInfo()}</div>}
+          {game.duceMode && <div className="text-xs text-red-500">DEBUG duceLeaderId: {game.duceLeaderId ?? "null"}</div>}
         </div>
         <div className={`text-xs px-2 py-1 rounded font-medium ${game.status === "playing" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
           {game.status === "playing" ? "Playing" : "Fin."}
