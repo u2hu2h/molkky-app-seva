@@ -169,6 +169,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   const [undoing, setUndoing] = useState(false);
   const [showNextSet, setShowNextSet] = useState(false);
   const [setWinnerId, setSetWinnerId] = useState<string | null>(null);
+  const [pendingGameSnapshot, setPendingGameSnapshot] = useState<Game | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   // カウントダウンタイマー（得点入力5秒後に60秒からカウントダウン）
@@ -258,12 +259,19 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           status: "finished", winnerId: wid,
         });
       } else {
-        // multi/bestof: 常にshowNextSetダイアログを経由
-        // （DuceかどうかはconfirmNextSet内のprepareNextSetで判定）
+        // multi/bestof: showNextSetダイアログを経由
+        // Firestoreに現セット結果を保存
         await updateDoc(doc(db, "games", id), {
           players: updatedPlayers, currentTurn: nextTurn,
           winnerId: null, status: "playing",
         });
+        // confirmNextSet用にセット後のgame状態をスナップショット保存
+        const snapshot: Game = {
+          ...game,
+          players: updatedPlayers,
+          currentTurn: nextTurn,
+        };
+        setPendingGameSnapshot(snapshot);
         setShowNextSet(true);
       }
     } else {
@@ -276,8 +284,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   const confirmNextSet = async () => {
     if (!game) return;
     setShowNextSet(false);
-    const next = prepareNextSet(game, setWinnerId);
-    // prepareNextSet の結果をそのままFirestoreに保存（finished含む）
+    // pendingGameSnapshotがあればそれを使う（onSnapshot更新前の正確な状態）
+    const baseGame = pendingGameSnapshot ?? game;
+    setPendingGameSnapshot(null);
+    const next = prepareNextSet(baseGame, setWinnerId);
     await updateDoc(doc(db, "games", id), next);
   };
 
@@ -285,6 +295,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     if (!game || turns.length === 0) return;
     setUndoing(true);
     setShowNextSet(false);
+    setPendingGameSnapshot(null);
     stopCountdown();
     const lastTurn = turns[0];
     const snapshot = (lastTurn as any).snapshot;
@@ -384,11 +395,15 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     return { wins: displayWins > 0 ? `${displayWins}W` : null, text: `(${total})` };
   };
 
-  // セット終了ダイアログ用: 今セットの勝者を+1した表示
+  // セット終了ダイアログ用: 今セットの勝者を+1した表示（pendingSnapshotから取得）
   const playerLabelForDialog = (player: Player) => {
     if (!isMultiSet) return null;
-    const setsWon = player.setsWon + (player.id === setWinnerId ? 1 : 0);
-    const total = player.totalSetScore + player.totalScore;
+    // pendingGameSnapshotがあればそのplayers（正確なsetsWon）を使う
+    const basePlayer = pendingGameSnapshot
+      ? pendingGameSnapshot.players.find((p) => p.id === player.id) ?? player
+      : player;
+    const setsWon = basePlayer.setsWon + (basePlayer.id === setWinnerId ? 1 : 0);
+    const total = basePlayer.totalSetScore + basePlayer.totalScore;
     if (game.gameMode === "bestof") {
       return `(W${setsWon}-${total})`;
     }
