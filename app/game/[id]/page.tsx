@@ -285,6 +285,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         if (next.status === "finished") {
           await updateDoc(doc(db, "games", id), next);
         } else {
+          // 暫定書き込み（スコアのみ）。duceLeaderIdはconfirmNextSet時に書く
           await updateDoc(doc(db, "games", id), {
             players: updatedPlayers, currentTurn: nextTurn,
             winnerId: null, status: "playing",
@@ -310,7 +311,10 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     setShowNextSet(false);
     setPendingGameSnapshot(null);
     setPendingNext(null);
-    if (next) await updateDoc(doc(db, "games", id), next);
+    if (next) {
+      // winnerId: null を明示的に含めて書き込む
+      await updateDoc(doc(db, "games", id), { ...next, winnerId: null });
+    }
   };
 
   const undoLastTurn = async () => {
