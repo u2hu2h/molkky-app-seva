@@ -113,24 +113,26 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
 
   // Best of ロジック
   if (gameMode === "bestof") {
-    const maxWins = Math.max(...updatedPlayers.map((p) => p.setsWon));
-    const playersAtMax = updatedPlayers.filter((p) => p.setsWon === maxWins);
+    const duceThreshold = bestOfSets - 1;
+    // デュース発動条件: 全プレイヤーが duceThreshold 以上の setsWon
+    const duceActive = game.duceMode && updatedPlayers.every((p) => p.setsWon >= duceThreshold);
 
-    if (maxWins >= bestOfSets) {
-      // 勝利条件に達したプレイヤーがいる
-      if (game.duceMode && playersAtMax.length > 1) {
-        // Duceモード: 複数が最大勝利数に達している → Duce継続
-        // 前セット勝者と今セット勝者が同じ → 2連続 → Match終了
-        if (game.duceLeaderId === setWinnerId && setWinnerId !== null) {
-          return { players: updatedPlayers, status: "finished", winnerId: setWinnerId, duceLeaderId: null };
-        }
-        // 異なる人が勝った or 初めてDuce → リードを更新して続行
-        const reorderedPlayers = orderByTotalScore(updatedPlayers);
-        const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
-        const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
-        return { players: reorderedPlayers, currentTurn: firstIdx, currentSet: nextSet, winnerId: null, status: "playing", duceLeaderId: setWinnerId };
+    if (duceActive) {
+      // duceLeaderId: デュース中に直前のセットを取ったプレイヤー（1連勝中）
+      // 今セット勝者 === duceLeaderId → 2連続 → Match終了
+      if (game.duceLeaderId === setWinnerId && setWinnerId !== null) {
+        return { players: updatedPlayers, status: "finished", winnerId: setWinnerId, duceLeaderId: null };
       }
-      // Duceモードでないか、1人だけが最大勝利数 → 通常勝利
+      // 異なるプレイヤーが勝った → duceLeaderIdを更新して続行
+      const reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
+      const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
+      const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
+      return { players: reorderedPlayers, currentTurn: firstIdx, currentSet: nextSet, winnerId: null, status: "playing", duceLeaderId: setWinnerId };
+    }
+
+    // デュースなし: 誰かが bestOfSets に達したら通常勝利
+    const maxWins = Math.max(...updatedPlayers.map((p) => p.setsWon));
+    if (maxWins >= bestOfSets) {
       const champion = updatedPlayers.find((p) => p.setsWon === maxWins);
       return { players: updatedPlayers, status: "finished", winnerId: champion?.id ?? null, duceLeaderId: null };
     }
@@ -143,16 +145,7 @@ function prepareNextSet(game: Game, setWinnerId: string | null): Partial<Game> {
   }
 
   // 次セットのプレイヤー順
-  let reorderedPlayers = updatedPlayers;
-  if (gameMode === "bestof") {
-    const isDecider = updatedPlayers.every((p) => p.setsWon === Math.max(...updatedPlayers.map((q) => q.setsWon)));
-    reorderedPlayers = isDecider
-      ? orderByTotalScore(updatedPlayers)
-      : applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
-  } else {
-    reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
-  }
-
+  const reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
   const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
   const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
 
