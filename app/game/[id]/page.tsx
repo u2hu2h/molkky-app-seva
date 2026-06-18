@@ -163,6 +163,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   const [showNextSet, setShowNextSet] = useState(false);
   const [setWinnerId, setSetWinnerId] = useState<string | null>(null);
   const [pendingGameSnapshot, setPendingGameSnapshot] = useState<Game | null>(null);
+  const [pendingNext, setPendingNext] = useState<Partial<Game> | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   // カウントダウンタイマー（得点入力5秒後に60秒からカウントダウン）
@@ -251,7 +252,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           status: "finished", winnerId: wid,
         });
       } else {
-        // multi/bestof: Match終了かどうかを先に判定
+        // multi/bestof: next setの内容を事前計算
         const snapshot: Game = { ...game, players: updatedPlayers, currentTurn: nextTurn };
         const next = prepareNextSet(snapshot, wid);
 
@@ -259,12 +260,14 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           // Match決着 → ダイアログを出さずに直接終了画面へ
           await updateDoc(doc(db, "games", id), next);
         } else {
-          // セット継続 → Firestoreに現セット結果を保存してダイアログ表示
+          // セット継続 → 現セット結果を保存してダイアログ表示
+          // nextの内容をpendingに保存しておき、confirmNextSetで書き込む
           await updateDoc(doc(db, "games", id), {
             players: updatedPlayers, currentTurn: nextTurn,
             winnerId: null, status: "playing",
           });
           setPendingGameSnapshot(snapshot);
+          setPendingNext(next);
           setShowNextSet(true);
         }
       }
@@ -275,14 +278,13 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     setSubmitting(false);
   };
 
-  // ★ バグ修正: setWinnerId を変数にキャプチャしてから state をクリア
+  // confirmNextSet: submitScore時に計算済みのnextをそのまま書き込む
   const confirmNextSet = async () => {
     if (!game) return;
-    const baseGame = pendingGameSnapshot ?? game;
-    const capturedSetWinnerId = setWinnerId;
+    const next = pendingNext ?? prepareNextSet(pendingGameSnapshot ?? game, setWinnerId);
     setShowNextSet(false);
     setPendingGameSnapshot(null);
-    const next = prepareNextSet(baseGame, capturedSetWinnerId);
+    setPendingNext(null);
     await updateDoc(doc(db, "games", id), next);
   };
 
@@ -291,6 +293,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     setUndoing(true);
     setShowNextSet(false);
     setPendingGameSnapshot(null);
+    setPendingNext(null);
     stopCountdown();
     const lastTurn = turns[0];
     const snapshot = (lastTurn as any).snapshot;
