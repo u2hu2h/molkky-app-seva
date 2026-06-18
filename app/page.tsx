@@ -34,7 +34,6 @@ function HomePageInner() {
   const [duceMode, setDuceMode] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // 直前の入力値を復元
   useEffect(() => {
     try {
       const saved = localStorage.getItem(PLAYER_NAMES_KEY);
@@ -47,14 +46,12 @@ function HomePageInner() {
     } catch {}
   }, []);
 
-  // 入力値を保存
   useEffect(() => {
     try {
       localStorage.setItem(PLAYER_NAMES_KEY, JSON.stringify(playerNames));
     } catch {}
   }, [playerNames]);
 
-  // ?new=1 でConf.を自動オープン
   useEffect(() => {
     if (searchParams.get("new") === "1") setShowForm(true);
   }, [searchParams]);
@@ -81,7 +78,6 @@ function HomePageInner() {
   };
   const clearPlayers = () => setPlayerNames(["", ""]);
 
-  // Recent Match: 最大20件（Firestore側でlimit済み）
   const visibleGames = games;
 
   const deleteGame = async (gameId: string) => {
@@ -154,7 +150,6 @@ function HomePageInner() {
           <div className="border border-gray-200 rounded p-6 mb-8 bg-gray-50">
             <h2 className="font-bold text-lg mb-5">Conf.</h2>
 
-            {/* プレイヤー入力（▲▼ボタンのみ） */}
             <div className="mb-5">
               <div className="space-y-2">
                 {playerNames.map((name, i) => (
@@ -187,7 +182,6 @@ function HomePageInner() {
               </div>
             </div>
 
-            {/* ゲームモード選択 */}
             <div className="mb-5">
               <div className="text-sm font-bold mb-3">Game Mode</div>
               <div className="space-y-2">
@@ -287,7 +281,7 @@ function HomePageInner() {
                       if (!isNaN(n) && n > 0) setThrowingTimeSec(n);
                     }}
                     onFocus={() => setThrowingTimeOption("custom")}
-                    placeholder="秒"
+                    placeholder="Sec"
                     className="w-14 border border-gray-300 rounded px-2 py-0.5 text-sm text-center focus:outline-none focus:border-black ml-1"
                   />
                 </label>
@@ -303,7 +297,6 @@ function HomePageInner() {
           </div>
         )}
 
-        {/* Game List */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs tracking-widest text-gray-400">Recent Match</h2>
