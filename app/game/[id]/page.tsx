@@ -258,19 +258,22 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           status: "finished", winnerId: wid,
         });
       } else {
-        // multi/bestof: showNextSetダイアログを経由
-        await updateDoc(doc(db, "games", id), {
-          players: updatedPlayers, currentTurn: nextTurn,
-          winnerId: null, status: "playing",
-        });
-        // confirmNextSet用にセット後のgame状態をスナップショット保存
-        const snapshot: Game = {
-          ...game,
-          players: updatedPlayers,
-          currentTurn: nextTurn,
-        };
-        setPendingGameSnapshot(snapshot);
-        setShowNextSet(true);
+        // multi/bestof: Match終了かどうかを先に判定
+        const snapshot: Game = { ...game, players: updatedPlayers, currentTurn: nextTurn };
+        const next = prepareNextSet(snapshot, wid);
+
+        if (next.status === "finished") {
+          // Match決着 → ダイアログを出さずに直接終了画面へ
+          await updateDoc(doc(db, "games", id), next);
+        } else {
+          // セット継続 → Firestoreに現セット結果を保存してダイアログ表示
+          await updateDoc(doc(db, "games", id), {
+            players: updatedPlayers, currentTurn: nextTurn,
+            winnerId: null, status: "playing",
+          });
+          setPendingGameSnapshot(snapshot);
+          setShowNextSet(true);
+        }
       }
     } else {
       await updateDoc(doc(db, "games", id), { players: updatedPlayers, currentTurn: nextTurn, winnerId: null, status: "playing" });
