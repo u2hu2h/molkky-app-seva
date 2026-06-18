@@ -251,6 +251,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
       stopCountdown();
       const wid = getSetWinnerId(updatedPlayers);
       setSetWinnerId(wid);
+      const updatedGame: Game = { ...game, players: updatedPlayers };
 
       if (game.gameMode === "single") {
         await updateDoc(doc(db, "games", id), {
@@ -259,6 +260,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         });
       } else {
         // multi/bestof: showNextSetダイアログを経由
+        // Firestoreに現セット結果を保存
         await updateDoc(doc(db, "games", id), {
           players: updatedPlayers, currentTurn: nextTurn,
           winnerId: null, status: "playing",
@@ -279,14 +281,13 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
     setSubmitting(false);
   };
 
-  // ★ バグ修正: setWinnerId を変数にキャプチャしてから state をクリア
   const confirmNextSet = async () => {
     if (!game) return;
-    const baseGame = pendingGameSnapshot ?? game;
-    const capturedSetWinnerId = setWinnerId;
     setShowNextSet(false);
+    // pendingGameSnapshotがあればそれを使う（onSnapshot更新前の正確な状態）
+    const baseGame = pendingGameSnapshot ?? game;
     setPendingGameSnapshot(null);
-    const next = prepareNextSet(baseGame, capturedSetWinnerId);
+    const next = prepareNextSet(baseGame, setWinnerId);
     await updateDoc(doc(db, "games", id), next);
   };
 
@@ -382,19 +383,22 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
   const numPlayers = game.players.length;
   const turnNumber = Math.floor(currentSetTurns.length / numPlayers) + 1;
 
+  // 2セット目以降の表示ラベル: 直前セット含めた setsWon を表示
+  // セット終了ダイアログ中(showNextSet)は +1 した値を表示
   const playerLabel = (player: Player) => {
     if (!isMultiSet) return null;
     const total = player.totalSetScore + player.totalScore;
-    const displayWins = player.setsWon;
+    const displayWins = player.setsWon; // prepareNextSet後はすでに+1済み
     if (game.gameMode === "bestof") {
       return { wins: null, text: `(W${displayWins}-${total})` };
     }
     return { wins: displayWins > 0 ? `${displayWins}W` : null, text: `(${total})` };
   };
 
-  // セット終了ダイアログ用
+  // セット終了ダイアログ用: 今セットの勝者を+1した表示（pendingSnapshotから取得）
   const playerLabelForDialog = (player: Player) => {
     if (!isMultiSet) return null;
+    // pendingGameSnapshotがあればそのplayers（正確なsetsWon）を使う
     const basePlayer = pendingGameSnapshot
       ? pendingGameSnapshot.players.find((p) => p.id === player.id) ?? player
       : player;
@@ -408,9 +412,8 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
   // 次セットの全プレイヤー順
   const nextOrderNames = (() => {
-    const baseGame = pendingGameSnapshot ?? game;
-    const next = prepareNextSet(baseGame, setWinnerId);
-    const nextPlayers = (next.players ?? baseGame.players) as Player[];
+    const next = prepareNextSet(game, setWinnerId);
+    const nextPlayers = (next.players ?? game.players) as Player[];
     return [...nextPlayers].sort((a, b) => a.turnOrder - b.turnOrder).map((p) => p.name);
   })();
 
@@ -430,8 +433,8 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
 
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-5">
 
-        {/* ★ バグ修正: game.status === "playing" の条件を削除 */}
-        {showNextSet && (
+        {/* 次セット確認ダイアログ（multi/bestof の途中セットのみ） */}
+        {showNextSet && game.status === "playing" && (
           <div className="border-2 border-black rounded p-5 bg-gray-50 text-center">
             <div className="font-bold text-lg mb-1">Set {game.currentSet} Fin.</div>
             {setWinnerName && <div className="text-yellow-600 font-bold mb-2">🏆 {setWinnerName} WIN!!</div>}
@@ -448,7 +451,6 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                 </div>
               ))}
             </div>
-            {/* ★ ボタン色: グレー、キャプション: "Next Set"（矢印なし） */}
             <button onClick={confirmNextSet}
               className="bg-gray-400 text-white font-bold px-8 py-2 rounded hover:bg-gray-500 transition-colors">
               Next Set
@@ -501,6 +503,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
                       <tbody>
                         {game.players.map((player) => {
                           const setScores: Record<number, number> = {};
+                          // turnsから各セットのscoreAfterの最終値を取得
                           [...turns].reverse().forEach((t) => {
                             if (t.playerId === player.id && t.setNumber) {
                               setScores[t.setNumber] = t.scoreAfter;
@@ -526,7 +529,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
 
-        {/* プレイヤーカード 横並び — 最終セット終了後（finished）は非表示 */}
+        {/* プレイヤーカード 横並び（D&D対応） — 最終セット終了後（finished）は非表示 */}
         {!(game.status === "finished" && isMultiSet) && (
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${game.players.length}, minmax(0, 1fr))` }}>
           {displayPlayers.map((player, displayIdx) => {
