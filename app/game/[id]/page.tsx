@@ -530,7 +530,7 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         {!(game.status === "finished" && isMultiSet) && (
         <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${game.players.length}, minmax(0, 1fr))` }}>
           {displayPlayers.map((player, displayIdx) => {
-            const isCurrent = game.status === "playing" && player.id === currentPlayer?.id;
+            const isCurrent = game.status === "playing" && !showNextSet && player.id === currentPlayer?.id;
             const label = playerLabel(player);
             return (
               <div
