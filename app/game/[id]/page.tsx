@@ -124,8 +124,14 @@ function prepareNextSet(
     const duceActive = game.duceMode && updatedPlayers.every((p) => p.setsWon >= duceThreshold);
 
     if (duceActive) {
-      if (currentDuceLeaderId === null) {
-        // 拮抗状態 → 今セット勝者が「1連勝」開始、duceLeaderId = setWinnerId
+      if (currentDuceLeaderId === setWinnerId && setWinnerId !== null) {
+        // 同じプレイヤーが連続2セット → Match終了
+        return {
+          players: updatedPlayers, status: "finished",
+          winnerId: setWinnerId, duceLeaderId: null,
+        };
+      } else {
+        // 初回 or 違うプレイヤーが勝った → そのプレイヤーをduceLeaderIdに更新して続行
         const reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
         const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
         const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
@@ -133,22 +139,6 @@ function prepareNextSet(
           players: reorderedPlayers, currentTurn: firstIdx,
           currentSet: nextSet, winnerId: null, status: "playing",
           duceLeaderId: setWinnerId,
-        };
-      } else if (currentDuceLeaderId === setWinnerId) {
-        // 同じプレイヤーが連続2セット → Match終了
-        return {
-          players: updatedPlayers, status: "finished",
-          winnerId: setWinnerId, duceLeaderId: null,
-        };
-      } else {
-        // 違うプレイヤーが勝った → 拮抗状態に戻す（duceLeaderId = null）
-        const reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
-        const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
-        const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
-        return {
-          players: reorderedPlayers, currentTurn: firstIdx,
-          currentSet: nextSet, winnerId: null, status: "playing",
-          duceLeaderId: null,
         };
       }
     }
