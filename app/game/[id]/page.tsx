@@ -57,6 +57,11 @@ function slideOrder(players: Player[]): Player[] {
   const n = players.length;
   return players.map((p) => ({ ...p, turnOrder: (p.turnOrder - 1 + n) % n }));
 }
+function orderByTotalScore(players: Player[]): Player[] {
+  const sorted = [...players].sort((a, b) => (b.totalSetScore + b.totalScore) - (a.totalSetScore + a.totalScore));
+  return players.map((p) => ({ ...p, turnOrder: sorted.findIndex((s) => s.id === p.id) }));
+}
+
 function applyOrderPattern(players: Player[], pattern: string): Player[] {
   if (pattern === "reverse") return reverseOrder(players);
   if (pattern === "slide") return slideOrder(players);
