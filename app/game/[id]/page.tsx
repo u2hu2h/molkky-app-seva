@@ -149,6 +149,19 @@ function prepareNextSet(
       const champion = updatedPlayers.find((p) => p.setsWon === maxWins);
       return { players: updatedPlayers, status: "finished", winnerId: champion?.id ?? null, duceLeaderId: null };
     }
+
+    // フルセット判定: 全プレイヤーが bestOfSets-1 に達していたら総得点順
+    const isFullSet = updatedPlayers.every((p) => p.setsWon >= bestOfSets - 1);
+    if (isFullSet) {
+      const reorderedPlayers = orderByTotalScore(updatedPlayers);
+      const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
+      const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
+      return {
+        players: reorderedPlayers, currentTurn: firstIdx,
+        currentSet: nextSet, winnerId: null, status: "playing",
+        duceLeaderId: null,
+      };
+    }
   }
 
   // multi: 全セット終了でゲーム終了
@@ -157,7 +170,7 @@ function prepareNextSet(
     return { players: updatedPlayers, status: "finished", winnerId: champion?.id ?? null };
   }
 
-  // 次セットへ
+  // 次セットへ（通常順）
   const reorderedPlayers = applyOrderPattern(updatedPlayers, game.orderPattern ?? "reverse");
   const firstPlayer = reorderedPlayers.find((p) => p.turnOrder === 0) ?? reorderedPlayers[0];
   const firstIdx = reorderedPlayers.findIndex((p) => p.id === firstPlayer.id);
@@ -433,7 +446,6 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
           <h1 className="font-bold">Mölkky Score Seva</h1>
           <div className="text-xs text-gray-400">{modeName()}</div>
           {modeInfo() && <div className="text-xs text-gray-400">{modeInfo()}</div>}
-          {game.duceMode && <div className="text-xs text-red-500">DEBUG duceLeaderId: {game.duceLeaderId ?? "null"}</div>}
         </div>
         <div className={`text-xs px-2 py-1 rounded font-medium ${game.status === "playing" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
           {game.status === "playing" ? "Playing" : "Fin."}
