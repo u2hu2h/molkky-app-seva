@@ -293,10 +293,11 @@ export default function GamePage({ params }: { params: Promise<{ id: string }> }
         if (next.status === "finished") {
           await updateDoc(doc(db, "games", id), next);
         } else {
-          // 暫定書き込み（スコアのみ）。duceLeaderIdはconfirmNextSet時に書く
+          // 暫定書き込み。duceLeaderIdも含めて書く（次セット判定で使うため）
           await updateDoc(doc(db, "games", id), {
             players: updatedPlayers, currentTurn: nextTurn,
             winnerId: null, status: "playing",
+            duceLeaderId: next.duceLeaderId !== undefined ? next.duceLeaderId : (game.duceLeaderId ?? null),
           });
           setPendingGameSnapshot(snapshot);
           setPendingNext(next);
