@@ -34,6 +34,7 @@ function HomePageInner() {
   const [duceMode, setDuceMode] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // 直前の入力値を復元
   useEffect(() => {
     try {
       const saved = localStorage.getItem(PLAYER_NAMES_KEY);
@@ -46,12 +47,14 @@ function HomePageInner() {
     } catch {}
   }, []);
 
+  // 入力値を保存
   useEffect(() => {
     try {
       localStorage.setItem(PLAYER_NAMES_KEY, JSON.stringify(playerNames));
     } catch {}
   }, [playerNames]);
 
+  // ?new=1 でConf.を自動オープン
   useEffect(() => {
     if (searchParams.get("new") === "1") setShowForm(true);
   }, [searchParams]);
@@ -78,6 +81,7 @@ function HomePageInner() {
   };
   const clearPlayers = () => setPlayerNames(["", ""]);
 
+  // Recent Match: 最大20件（Firestore側でlimit済み）
   const visibleGames = games;
 
   const deleteGame = async (gameId: string) => {
@@ -99,25 +103,32 @@ function HomePageInner() {
     const names = playerNames.map((n) => n.trim()).filter(Boolean);
     if (names.length < 2) return alert("プレイヤーは2人以上必要です");
     setCreating(true);
-    const players = names.map((name, i) => ({
-      id: `p${i}`, name,
-      totalScore: 0, totalSetScore: 0,
-      missCount: 0, isEliminated: false,
-      turnOrder: i, setsWon: 0,
-    }));
-    const ref = await addDoc(collection(db, "games"), {
-      createdAt: serverTimestamp(),
-      status: "playing", winScore: 50, players,
-      currentTurn: 0, winnerId: null, gameMode,
-      totalSets: gameMode === "multi" ? totalSets : 1,
-      bestOfSets: gameMode === "bestof" ? bestOfSets : 1,
-      currentSet: 1,
-      orderPattern,
-      throwingTimeSec,
-      duceMode: gameMode === "bestof" ? duceMode : false,
-      duceLeaderId: null,
-    });
-    router.push(`/game/${ref.id}`);
+    try {
+      const players = names.map((name, i) => ({
+        id: `p${i}`, name,
+        totalScore: 0, totalSetScore: 0,
+        missCount: 0, isEliminated: false,
+        turnOrder: i, setsWon: 0,
+      }));
+      const ref = await addDoc(collection(db, "games"), {
+        createdAt: serverTimestamp(),
+        status: "playing", winScore: 50, players,
+        currentTurn: 0, winnerId: null, gameMode,
+        totalSets: gameMode === "multi" ? totalSets : 1,
+        bestOfSets: gameMode === "bestof" ? bestOfSets : 1,
+        currentSet: 1,
+        orderPattern,
+        throwingTimeSec,
+        duceMode: gameMode === "bestof" ? duceMode : false,
+        duceLeaderId: null,
+      });
+      router.push(`/game/${ref.id}`);
+    } catch (e) {
+      console.error(e);
+      alert("ゲームの作成に失敗しました。もう一度お試しください。");
+    } finally {
+      setCreating(false);
+    }
   };
 
   const statusLabel = (s: string) => {
@@ -150,6 +161,7 @@ function HomePageInner() {
           <div className="border border-gray-200 rounded p-6 mb-8 bg-gray-50">
             <h2 className="font-bold text-lg mb-5">Conf.</h2>
 
+            {/* プレイヤー入力（▲▼ボタンのみ） */}
             <div className="mb-5">
               <div className="space-y-2">
                 {playerNames.map((name, i) => (
@@ -182,6 +194,7 @@ function HomePageInner() {
               </div>
             </div>
 
+            {/* ゲームモード選択 */}
             <div className="mb-5">
               <div className="text-sm font-bold mb-3">Game Mode</div>
               <div className="space-y-2">
@@ -281,7 +294,7 @@ function HomePageInner() {
                       if (!isNaN(n) && n > 0) setThrowingTimeSec(n);
                     }}
                     onFocus={() => setThrowingTimeOption("custom")}
-                    placeholder="Sec"
+                    placeholder="秒"
                     className="w-14 border border-gray-300 rounded px-2 py-0.5 text-sm text-center focus:outline-none focus:border-black ml-1"
                   />
                 </label>
@@ -297,6 +310,7 @@ function HomePageInner() {
           </div>
         )}
 
+        {/* Game List */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xs tracking-widest text-gray-400">Recent Match</h2>
